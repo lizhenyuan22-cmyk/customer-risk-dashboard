@@ -46,11 +46,12 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     const companyCode = String(body.companyCode || "").trim();
+    const companyName = String(body.companyName || "").trim();
     const credentialId = Number(body.credentialId);
 
-    if (!companyCode || !credentialId) {
+    if (!companyCode || !companyName || !credentialId) {
       return NextResponse.json(
-        { error: "companyCode and credentialId are required" },
+        { error: "companyCode, companyName and credentialId are required" },
         { status: 400 }
       );
     }
@@ -58,6 +59,7 @@ export async function POST(req: NextRequest) {
     const created = await prisma.companyBinding.create({
       data: {
         companyCode,
+        companyName,
         credentialId,
       },
     });
