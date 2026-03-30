@@ -178,10 +178,20 @@ export default function Page() {
     async function loadCompanies() {
       try {
         const res = await fetch("/api/company", { cache: "no-store" });
+    
+        // ⭐ 关键：先判断接口是否成功
+        if (!res.ok) {
+          const text = await res.text();
+          console.error("loadCompanies failed:", res.status, text);
+          setCompanies([]);
+          return;
+        }
+    
         const rows = await res.json();
-        setCompanies(rows || []);
+        setCompanies(Array.isArray(rows) ? rows : []);
       } catch (error) {
         console.error("loadCompanies failed:", error);
+        setCompanies([]);
       }
     }
 

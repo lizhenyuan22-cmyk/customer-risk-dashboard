@@ -1,10 +1,24 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type Credential = {
   id: number;
+  credentialName: string;
+  companyLabel: string;
+  companyCode: string;
+  baseUrl: string;
+  merchantId: string;
+  accessId: string;
+  apiToken: string;
+  webhookSecret?: string | null;
+  whitelistIp?: string | null;
+  status: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+type FormState = {
   credential_name: string;
   company_label: string;
   company_code: string;
@@ -12,13 +26,12 @@ type Credential = {
   merchant_id: string;
   access_id: string;
   api_token: string;
-  webhook_secret: string | null;
-  whitelist_ip: string | null;
+  webhook_secret: string;
+  whitelist_ip: string;
   status: string;
 };
 
-const emptyForm = {
-  id: 0,
+const emptyForm: FormState = {
   credential_name: "",
   company_label: "",
   company_code: "",
@@ -31,47 +44,60 @@ const emptyForm = {
   status: "ACTIVE",
 };
 
-function TopNav() {
-  return (
-    <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <Link
-          href="/"
-          className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 font-semibold text-white"
-        >
-          风控首页
-        </Link>
-        <Link
-          href="/credentials"
-          className="rounded-2xl bg-cyan-500 px-4 py-2 font-semibold text-slate-950"
-        >
-          API 凭证管理
-        </Link>
-        <Link
-          href="/companies"
-          className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 font-semibold text-white"
-        >
-          公司绑定管理
-        </Link>
-      </div>
-    </div>
-  );
-}
-
 export default function CredentialsPage() {
   const [rows, setRows] = useState<Credential[]>([]);
-  const [form, setForm] = useState(emptyForm);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  async function load() {
-    const res = await fetch("/api/credentials", { cache: "no-store" });
-    const json = await res.json();
-    setRows(json);
+  const [form, setForm] = useState<FormState>(emptyForm);
+  const [editingId, setEditingId] = useState<number | null>(null);
+
+  const [keyword, setKeyword] = useState("");
+  const [searchText, setSearchText] = useState("");
+
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const isEditing = editingId !== null;
+
+  async function loadData(targetPage = page, targetKeyword = keyword) {
+    try {
+      setLoading(true);
+      setError("");
+
+      const params = new URLSearchParams({
+        page: String(targetPage),
+        pageSize: String(pageSize),
+        keyword: targetKeyword,
+      });
+
+      const res = await fetch(`/api/credentials?${params.toString()}`, {
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status}: ${text}`);
+      }
+
+      const data = await res.json();
+
+      setRows(Array.isArray(data.rows) ? data.rows : []);
+      setTotal(data.total || 0);
+      setTotalPages(data.totalPages || 1);
+      setPage(data.page || 1);
+    } catch (err) {
+      console.error("load credentials failed:", err);
+      setError("Failed to load credentials");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
-    load();
+    loadData(1, "");
   }, []);
 
   function resetForm() {
@@ -79,55 +105,79 @@ export default function CredentialsPage() {
     setEditingId(null);
   }
 
-  function handleEdit(row: Credential) {
-    setEditingId(row.id);
-    setForm({
-      id: row.id,
-      credential_name: row.credential_name || "",
-      company_label: row.company_label || "",
-      company_code: row.company_code || "",
-      base_url: row.base_url || "",
-      merchant_id: row.merchant_id || "",
-      access_id: row.access_id || "",
-      api_token: row.api_token || "",
-      webhook_secret: row.webhook_secret || "",
-      whitelist_ip: row.whitelist_ip || "",
-      status: row.status || "ACTIVE",
-    });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  function validateForm() {
+    if (
+      !form.credential_name.trim() ||
+      !form.company_label.trim() ||
+      !form.company_code.trim() ||
+      !form.base_url.trim() ||
+      !form.merchant_id.trim() ||
+      !form.access_id.trim() ||
+      !form.api_token.trim()
+    ) {
+      alert("请先填写必填栏位");
+      return false;
+    }
+
+    return true;
   }
 
-  async function handleSubmit() {
+  async function handleCreate() {
     try {
-      setLoading(true);
+      setError("");
 
-      const method = editingId ? "PUT" : "POST";
+      if (!validateForm()) return;
 
       const res = await fetch("/api/credentials", {
-        method,
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(form),
       });
 
-      const json = await res.json();
-
       if (!res.ok) {
-        alert(json.error || "保存失败");
-        return;
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status}: ${text}`);
       }
 
+      await res.json();
       resetForm();
-      load();
-    } finally {
-      setLoading(false);
+      await loadData(1, keyword);
+      alert("新增成功");
+    } catch (err) {
+      console.error("create credential failed:", err);
+      alert("新增失败，请检查 API 或后端错误");
     }
   }
 
-  async function handleToggleStatus(row: Credential) {
+  function handleEdit(row: Credential) {
+    setEditingId(row.id);
+    setForm({
+      credential_name: row.credentialName,
+      company_label: row.companyLabel,
+      company_code: row.companyCode,
+      base_url: row.baseUrl,
+      merchant_id: row.merchantId,
+      access_id: row.accessId,
+      api_token: row.apiToken,
+      webhook_secret: row.webhookSecret || "",
+      whitelist_ip: row.whitelistIp || "",
+      status: row.status,
+    });
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function handleUpdate() {
     try {
-      setLoading(true);
+      setError("");
+
+      if (!validateForm()) return;
+      if (!editingId) {
+        alert("没有选中要编辑的资料");
+        return;
+      }
 
       const res = await fetch("/api/credentials", {
         method: "PUT",
@@ -135,181 +185,423 @@ export default function CredentialsPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          ...row,
-          status: row.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
+          id: editingId,
+          ...form,
         }),
       });
 
-      const json = await res.json();
-
       if (!res.ok) {
-        alert(json.error || "状态更新失败");
-        return;
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status}: ${text}`);
       }
 
-      load();
-    } finally {
-      setLoading(false);
+      await res.json();
+      resetForm();
+      await loadData(page, keyword);
+      alert("修改成功");
+    } catch (err) {
+      console.error("update credential failed:", err);
+      alert("修改失败，请检查 API 或后端错误");
+    }
+  }
+
+  async function handleDelete(id: number) {
+    const ok = window.confirm(`确定要删除 ID ${id} 吗？`);
+    if (!ok) return;
+
+    try {
+      const res = await fetch(`/api/credentials?id=${id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status}: ${text}`);
+      }
+
+      await res.json();
+
+      if (editingId === id) {
+        resetForm();
+      }
+
+      const nextPage = rows.length === 1 && page > 1 ? page - 1 : page;
+      await loadData(nextPage, keyword);
+      alert("删除成功");
+    } catch (err) {
+      console.error("delete credential failed:", err);
+      alert("删除失败，请检查 API 或后端错误");
+    }
+  }
+
+  function handleSearch() {
+    setKeyword(searchText.trim());
+    loadData(1, searchText.trim());
+  }
+
+  function handleResetSearch() {
+    setSearchText("");
+    setKeyword("");
+    loadData(1, "");
+  }
+
+  function handlePrevPage() {
+    if (page > 1) {
+      loadData(page - 1, keyword);
+    }
+  }
+
+  function handleNextPage() {
+    if (page < totalPages) {
+      loadData(page + 1, keyword);
     }
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 p-6 text-white">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <TopNav />
+    <div
+      style={{
+        padding: 24,
+        background: "#111",
+        minHeight: "100vh",
+        color: "#fff",
+      }}
+    >
+      <h1 style={{ marginBottom: 20 }}>Credentials</h1>
 
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">API 凭证管理</h1>
-            {editingId && (
-              <button
-                onClick={resetForm}
-                className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm"
-              >
-                取消编辑
-              </button>
-            )}
-          </div>
-          <p className="mt-2 text-sm text-white/60">
-            在这里新增、编辑、启用或停用正式 API 凭证。
-          </p >
-        </div>
+      <div
+        style={{
+          marginBottom: 16,
+          padding: 16,
+          border: "1px solid #333",
+          background: "#1a1a1a",
+          borderRadius: 8,
+        }}
+      >
+        <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 18 }}>
+          搜索
+        </h2>
 
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
-          <h2 className="mb-4 text-lg font-semibold">
-            {editingId ? "编辑 API 凭证" : "新增 API 凭证"}
-          </h2>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr auto auto",
+            gap: 12,
+          }}
+        >
+          <input
+            placeholder="输入 Credential Name / Company Label / Company Code / Merchant ID / Access ID"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            style={inputStyle}
+          />
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <input
-              className="rounded bg-white/10 p-3"
-              placeholder="Credential Name"
-              value={form.credential_name}
-              onChange={(e) => setForm({ ...form, credential_name: e.target.value })}
-            />
-            <input
-              className="rounded bg-white/10 p-3"
-              placeholder="Company Label"
-              value={form.company_label}
-              onChange={(e) => setForm({ ...form, company_label: e.target.value })}
-            />
-            <input
-              className="rounded bg-white/10 p-3"
-              placeholder="Company Code"
-              value={form.company_code}
-              onChange={(e) => setForm({ ...form, company_code: e.target.value })}
-            />
-            <input
-              className="rounded bg-white/10 p-3"
-              placeholder="Base URL"
-              value={form.base_url}
-              onChange={(e) => setForm({ ...form, base_url: e.target.value })}
-            />
-            <input
-              className="rounded bg-white/10 p-3"
-              placeholder="Merchant ID"
-              value={form.merchant_id}
-              onChange={(e) => setForm({ ...form, merchant_id: e.target.value })}
-            />
-            <input
-              className="rounded bg-white/10 p-3"
-              placeholder="Access ID"
-              value={form.access_id}
-              onChange={(e) => setForm({ ...form, access_id: e.target.value })}
-            />
-            <input
-              className="rounded bg-white/10 p-3"
-              placeholder="API Token"
-              value={form.api_token}
-              onChange={(e) => setForm({ ...form, api_token: e.target.value })}
-            />
-            <input
-              className="rounded bg-white/10 p-3"
-              placeholder="Webhook Secret"
-              value={form.webhook_secret}
-              onChange={(e) => setForm({ ...form, webhook_secret: e.target.value })}
-            />
-            <input
-              className="rounded bg-white/10 p-3"
-              placeholder="Whitelist IP"
-              value={form.whitelist_ip}
-              onChange={(e) => setForm({ ...form, whitelist_ip: e.target.value })}
-            />
-            <select
-              className="rounded bg-white/10 p-3"
-              value={form.status}
-              onChange={(e) => setForm({ ...form, status: e.target.value })}
-            >
-              <option value="ACTIVE">ACTIVE</option>
-              <option value="INACTIVE">INACTIVE</option>
-            </select>
-          </div>
+          <button onClick={handleSearch} style={buttonStyle}>
+            搜索
+          </button>
 
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="mt-6 rounded bg-cyan-500 px-4 py-2 font-semibold text-slate-950 disabled:opacity-60"
-          >
-            {loading ? "处理中..." : editingId ? "更新 API 凭证" : "新增 API 凭证"}
+          <button onClick={handleResetSearch} style={cancelButtonStyle}>
+            重置
           </button>
         </div>
+      </div>
 
-        <div className="overflow-x-auto rounded-3xl border border-white/10 bg-white/5 p-4">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/10 text-left">
-                <th className="py-2">名称</th>
-                <th>公司</th>
-                <th>Code</th>
-                <th>Base URL</th>
-                <th>Merchant ID</th>
-                <th>Access ID</th>
-                <th>Status</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id} className="border-b border-white/5">
-                  <td className="py-2">{row.credential_name}</td>
-                  <td>{row.company_label}</td>
-                  <td>{row.company_code}</td>
-                  <td className="max-w-[240px] truncate">{row.base_url}</td>
-                  <td>{row.merchant_id}</td>
-                  <td>{row.access_id}</td>
-                  <td>
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs ${
-                        row.status === "ACTIVE"
-                          ? "bg-emerald-500/15 text-emerald-300"
-                          : "bg-red-500/15 text-red-300"
-                      }`}
-                    >
-                      {row.status}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(row)}
-                        className="rounded-lg bg-white/10 px-3 py-1"
-                      >
-                        编辑
-                      </button>
-                      <button
-                        onClick={() => handleToggleStatus(row)}
-                        className="rounded-lg bg-white/10 px-3 py-1"
-                      >
-                        {row.status === "ACTIVE" ? "停用" : "启用"}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div
+        style={{
+          marginBottom: 24,
+          padding: 16,
+          border: "1px solid #333",
+          background: "#1a1a1a",
+          borderRadius: 8,
+        }}
+      >
+        <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 18 }}>
+          {isEditing ? `编辑 Credential #${editingId}` : "新增 Credential"}
+        </h2>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 12,
+          }}
+        >
+          <input
+            placeholder="Credential Name"
+            value={form.credential_name}
+            onChange={(e) =>
+              setForm({ ...form, credential_name: e.target.value })
+            }
+            style={inputStyle}
+          />
+
+          <input
+            placeholder="Company Label"
+            value={form.company_label}
+            onChange={(e) =>
+              setForm({ ...form, company_label: e.target.value })
+            }
+            style={inputStyle}
+          />
+
+          <input
+            placeholder="Company Code"
+            value={form.company_code}
+            onChange={(e) =>
+              setForm({ ...form, company_code: e.target.value })
+            }
+            style={inputStyle}
+          />
+
+          <input
+            placeholder="Base URL"
+            value={form.base_url}
+            onChange={(e) => setForm({ ...form, base_url: e.target.value })}
+            style={inputStyle}
+          />
+
+          <input
+            placeholder="Merchant ID"
+            value={form.merchant_id}
+            onChange={(e) =>
+              setForm({ ...form, merchant_id: e.target.value })
+            }
+            style={inputStyle}
+          />
+
+          <input
+            placeholder="Access ID"
+            value={form.access_id}
+            onChange={(e) => setForm({ ...form, access_id: e.target.value })}
+            style={inputStyle}
+          />
+
+          <input
+            placeholder="API Token"
+            value={form.api_token}
+            onChange={(e) => setForm({ ...form, api_token: e.target.value })}
+            style={inputStyle}
+          />
+
+          <input
+            placeholder="Webhook Secret"
+            value={form.webhook_secret}
+            onChange={(e) =>
+              setForm({ ...form, webhook_secret: e.target.value })
+            }
+            style={inputStyle}
+          />
+
+          <input
+            placeholder="Whitelist IP"
+            value={form.whitelist_ip}
+            onChange={(e) =>
+              setForm({ ...form, whitelist_ip: e.target.value })
+            }
+            style={inputStyle}
+          />
+
+          <select
+            value={form.status}
+            onChange={(e) => setForm({ ...form, status: e.target.value })}
+            style={inputStyle}
+          >
+            <option value="ACTIVE">ACTIVE</option>
+            <option value="INACTIVE">INACTIVE</option>
+          </select>
+        </div>
+
+        <div style={{ marginTop: 16, display: "flex", gap: 12 }}>
+          {!isEditing ? (
+            <button onClick={handleCreate} style={buttonStyle}>
+              新增
+            </button>
+          ) : (
+            <>
+              <button onClick={handleUpdate} style={buttonStyle}>
+                保存修改
+              </button>
+              <button onClick={resetForm} style={cancelButtonStyle}>
+                取消编辑
+              </button>
+            </>
+          )}
         </div>
       </div>
-    </main>
+
+      {loading && <p>Loading...</p>}
+      {error && <p>{error}</p>}
+
+      {!loading && !error && (
+        <div style={{ marginBottom: 12 }}>
+          共 {total} 条，当前第 {page} / {totalPages} 页
+        </div>
+      )}
+
+      {!loading && !error && rows.length === 0 && <p>No credentials found.</p>}
+
+      {!loading && !error && rows.length > 0 && (
+        <>
+          <div style={{ overflowX: "auto" }}>
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                background: "#1a1a1a",
+              }}
+            >
+              <thead>
+                <tr>
+                  {[
+                    "ID",
+                    "Credential Name",
+                    "Company Label",
+                    "Company Code",
+                    "Base URL",
+                    "Merchant ID",
+                    "Access ID",
+                    "API Token",
+                    "Webhook Secret",
+                    "Whitelist IP",
+                    "Status",
+                    "Actions",
+                  ].map((title) => (
+                    <th
+                      key={title}
+                      style={{
+                        border: "1px solid #333",
+                        padding: "10px",
+                        textAlign: "left",
+                        verticalAlign: "top",
+                      }}
+                    >
+                      {title}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.id}>
+                    <td style={cellStyle}>{row.id}</td>
+                    <td style={cellStyle}>{row.credentialName}</td>
+                    <td style={cellStyle}>{row.companyLabel}</td>
+                    <td style={cellStyle}>{row.companyCode}</td>
+                    <td style={cellStyle}>{row.baseUrl}</td>
+                    <td style={cellStyle}>{row.merchantId}</td>
+                    <td style={cellStyle}>{row.accessId}</td>
+                    <td style={cellStyle}>{row.apiToken}</td>
+                    <td style={cellStyle}>{row.webhookSecret || "-"}</td>
+                    <td style={cellStyle}>{row.whitelistIp || "-"}</td>
+                    <td style={cellStyle}>{row.status}</td>
+                    <td style={cellStyle}>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          onClick={() => handleEdit(row)}
+                          style={editButtonStyle}
+                        >
+                          编辑
+                        </button>
+                        <button
+                          onClick={() => handleDelete(row.id)}
+                          style={deleteButtonStyle}
+                        >
+                          删除
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div
+            style={{
+              marginTop: 16,
+              display: "flex",
+              gap: 12,
+              alignItems: "center",
+            }}
+          >
+            <button
+              onClick={handlePrevPage}
+              disabled={page <= 1}
+              style={{
+                ...buttonStyle,
+                opacity: page <= 1 ? 0.5 : 1,
+                cursor: page <= 1 ? "not-allowed" : "pointer",
+              }}
+            >
+              上一页
+            </button>
+
+            <button
+              onClick={handleNextPage}
+              disabled={page >= totalPages}
+              style={{
+                ...buttonStyle,
+                opacity: page >= totalPages ? 0.5 : 1,
+                cursor: page >= totalPages ? "not-allowed" : "pointer",
+              }}
+            >
+              下一页
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "10px 12px",
+  background: "#111",
+  color: "#fff",
+  border: "1px solid #333",
+  borderRadius: 6,
+  outline: "none",
+  boxSizing: "border-box",
+};
+
+const buttonStyle: React.CSSProperties = {
+  padding: "10px 18px",
+  background: "#2563eb",
+  color: "#fff",
+  border: "none",
+  borderRadius: 6,
+  cursor: "pointer",
+};
+
+const cancelButtonStyle: React.CSSProperties = {
+  padding: "10px 18px",
+  background: "#4b5563",
+  color: "#fff",
+  border: "none",
+  borderRadius: 6,
+  cursor: "pointer",
+};
+
+const editButtonStyle: React.CSSProperties = {
+  padding: "8px 14px",
+  background: "#d97706",
+  color: "#fff",
+  border: "none",
+  borderRadius: 6,
+  cursor: "pointer",
+};
+
+const deleteButtonStyle: React.CSSProperties = {
+  padding: "8px 14px",
+  background: "#dc2626",
+  color: "#fff",
+  border: "none",
+  borderRadius: 6,
+  cursor: "pointer",
+};
+
+const cellStyle: React.CSSProperties = {
+  border: "1px solid #333",
+  padding: "10px",
+  verticalAlign: "top",
+};

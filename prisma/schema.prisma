@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -36,4 +36,30 @@ model CompanyUser {
   @@index([referrerName])
   @@index([riskLevel])
   @@index([riskScore])
+}
+
+model ApiCredential {
+  id             Int      @id @default(autoincrement())
+  credentialName String
+  companyLabel   String
+  companyCode    String
+  baseUrl        String
+  merchantId     String
+  accessId       String
+  apiToken       String
+  webhookSecret  String?
+  whitelistIp    String?
+  status         String   @default("ACTIVE")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model CompanyBinding {
+  id           Int      @id @default(autoincrement())
+  companyCode  String
+  companyName  String
+  credentialId Int
+  status       String   @default("ACTIVE")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
