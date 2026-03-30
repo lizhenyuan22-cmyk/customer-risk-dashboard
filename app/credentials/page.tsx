@@ -62,7 +62,7 @@ export default function CredentialsPage() {
 
   const isEditing = editingId !== null;
 
-  async function loadData(targetPage = page, targetKeyword = keyword) {
+  async function loadData(targetPage = 1, targetKeyword = "") {
     try {
       setLoading(true);
       setError("");
@@ -124,8 +124,6 @@ export default function CredentialsPage() {
 
   async function handleCreate() {
     try {
-      setError("");
-
       if (!validateForm()) return;
 
       const res = await fetch("/api/credentials", {
@@ -171,8 +169,6 @@ export default function CredentialsPage() {
 
   async function handleUpdate() {
     try {
-      setError("");
-
       if (!validateForm()) return;
       if (!editingId) {
         alert("没有选中要编辑的资料");
@@ -235,8 +231,9 @@ export default function CredentialsPage() {
   }
 
   function handleSearch() {
-    setKeyword(searchText.trim());
-    loadData(1, searchText.trim());
+    const nextKeyword = searchText.trim();
+    setKeyword(nextKeyword);
+    loadData(1, nextKeyword);
   }
 
   function handleResetSearch() {
@@ -277,9 +274,7 @@ export default function CredentialsPage() {
           borderRadius: 8,
         }}
       >
-        <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 18 }}>
-          搜索
-        </h2>
+        <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 18 }}>搜索</h2>
 
         <div
           style={{
