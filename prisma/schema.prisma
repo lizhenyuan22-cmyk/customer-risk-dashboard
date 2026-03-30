@@ -1,0 +1,39 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model CompanyUser {
+  id              Int      @id @default(autoincrement())
+  companyCode     String
+  companyName     String
+  userId          String
+  username        String
+  name            String
+  mobile          String?
+  referrerName    String?
+  createdDateTime String?
+  visitedDateTime String?
+  lastDepositTime String?
+  depCount        Float    @default(0)
+  depTotal        Float    @default(0)
+  wthCount        Float    @default(0)
+  wthTotal        Float    @default(0)
+  bonusCount      Float    @default(0)
+  bonusTotal      Float    @default(0)
+  winLoss         Float    @default(0)
+  riskScore       Int      @default(0)
+  riskLevel       String   @default("LOW")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([companyCode, userId])
+  @@index([companyCode])
+  @@index([referrerName])
+  @@index([riskLevel])
+  @@index([riskScore])
+}
