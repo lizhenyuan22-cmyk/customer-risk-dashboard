@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import TopTabs from "@/app/components/TopTabs";
 import { useEffect, useMemo, useState } from "react";
 
 type CompanyItem = {
@@ -112,32 +113,7 @@ function csvEscape(value: unknown) {
   return str;
 }
 
-function TopNav() {
-  return (
-    <div className="rounded-[28px] border border-white/10 bg-white/5 p-4 shadow-xl backdrop-blur-xl">
-      <div className="flex flex-wrap items-center gap-3">
-        <Link
-          href="/"
-          className="rounded-2xl bg-cyan-500 px-4 py-2 font-semibold text-slate-950"
-        >
-          风控首页
-        </Link>
-        <Link
-          href="/credentials"
-          className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 font-semibold text-white"
-        >
-          API 凭证管理
-        </Link>
-        <Link
-          href="/company-bindings"
-          className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 font-semibold text-white"
-        >
-          公司绑定管理
-        </Link>
-      </div>
-    </div>
-  );
-}
+
 
 export default function Page() {
   const [companies, setCompanies] = useState<CompanyItem[]>([]);
@@ -566,7 +542,7 @@ export default function Page() {
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,#0f2147_0%,#08132d_45%,#030712_100%)] p-4 text-white md:p-8">
       <div className="mx-auto max-w-7xl space-y-6">
-        <TopNav />
+       <TopTabs active="home" />
 
         <div className="rounded-[28px] border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-xl">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">

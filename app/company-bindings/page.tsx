@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import TopTabs from "@/app/components/TopTabs";
 
 type BindingRow = {
   id: number;
@@ -8,8 +9,6 @@ type BindingRow = {
   companyName: string;
   credentialId: number;
   credentialName: string;
-  createdAt?: string;
-  updatedAt?: string;
 };
 
 type CredentialOption = {
@@ -30,11 +29,7 @@ export default function CompanyBindingsPage() {
   async function loadBindings() {
     const res = await fetch("/api/company-bindings", { cache: "no-store" });
     const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(data?.error || "Load company-bindings failed");
-    }
-
+    if (!res.ok) throw new Error(data?.error || "Load company-bindings failed");
     setRows(Array.isArray(data) ? data : []);
   }
 
@@ -43,11 +38,7 @@ export default function CompanyBindingsPage() {
       cache: "no-store",
     });
     const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(data?.error || "Load credentials failed");
-    }
-
+    if (!res.ok) throw new Error(data?.error || "Load credentials failed");
     setCredentials(Array.isArray(data.rows) ? data.rows : []);
   }
 
@@ -88,10 +79,7 @@ export default function CompanyBindingsPage() {
       });
 
       const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data?.error || "Add failed");
-      }
+      if (!res.ok) throw new Error(data?.error || "Add failed");
 
       setCompanyCode("");
       setCompanyName("");
@@ -114,10 +102,7 @@ export default function CompanyBindingsPage() {
       });
 
       const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data?.error || "Delete failed");
-      }
+      if (!res.ok) throw new Error(data?.error || "Delete failed");
 
       await loadBindings();
       alert("删除成功");
@@ -128,163 +113,195 @@ export default function CompanyBindingsPage() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#111",
-        color: "#fff",
-        padding: "24px",
-      }}
-    >
-      <h1 style={{ marginBottom: 20 }}>Company Bindings</h1>
+    <div style={pageBg}>
+      <div style={containerStyle}>
+        <TopTabs />
 
-      <div
-        style={{
-          marginBottom: 24,
-          padding: 16,
-          border: "1px solid #333",
-          background: "#1a1a1a",
-          borderRadius: 8,
-        }}
-      >
-        <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 18 }}>
-          新增绑定
-        </h2>
+        <section style={panelStyle}>
+          <div style={eyebrowStyle}>COMPANY BINDINGS</div>
+          <h1 style={titleStyle}>公司绑定管理</h1>
+          <p style={descStyle}>把公司和 API 凭证绑定起来，绑定后主页公司下拉就能读取到。</p>
+        </section>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr auto",
-            gap: 12,
-          }}
-        >
-          <input
-            placeholder="Company Code"
-            value={companyCode}
-            onChange={(e) => setCompanyCode(e.target.value)}
-            style={inputStyle}
-          />
+        <section style={panelStyle}>
+          <h2 style={sectionTitle}>新增绑定</h2>
 
-          <input
-            placeholder="Company Name"
-            value={companyName}
-            onChange={(e) => setCompanyName(e.target.value)}
-            style={inputStyle}
-          />
+          <div style={formGrid}>
+            <input
+              placeholder="Company Code"
+              value={companyCode}
+              onChange={(e) => setCompanyCode(e.target.value)}
+              style={inputStyle}
+            />
 
-          <select
-            value={credentialId}
-            onChange={(e) => setCredentialId(e.target.value)}
-            style={inputStyle}
-          >
-            <option value="">请选择 Credential</option>
-            {credentials.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.credentialName} ({item.companyCode})
-              </option>
-            ))}
-          </select>
+            <input
+              placeholder="Company Name"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              style={inputStyle}
+            />
 
-          <button onClick={handleAdd} style={buttonStyle}>
-            新增
-          </button>
-        </div>
-      </div>
-
-      {loading && <p>Loading...</p>}
-      {error && <p style={{ color: "#ff6b6b" }}>{error}</p>}
-
-      {!loading && !error && rows.length === 0 && <p>No bindings found.</p>}
-
-      {!loading && !error && rows.length > 0 && (
-        <div style={{ overflowX: "auto" }}>
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              background: "#1a1a1a",
-            }}
-          >
-            <thead>
-              <tr>
-                {[
-                  "ID",
-                  "Company Code",
-                  "Company Name",
-                  "Credential ID",
-                  "Credential Name",
-                  "Actions",
-                ].map((title) => (
-                  <th key={title} style={thStyle}>
-                    {title}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  <td style={cellStyle}>{row.id}</td>
-                  <td style={cellStyle}>{row.companyCode}</td>
-                  <td style={cellStyle}>{row.companyName}</td>
-                  <td style={cellStyle}>{row.credentialId}</td>
-                  <td style={cellStyle}>{row.credentialName || "-"}</td>
-                  <td style={cellStyle}>
-                    <button
-                      onClick={() => handleDelete(row.id)}
-                      style={deleteButtonStyle}
-                    >
-                      删除
-                    </button>
-                  </td>
-                </tr>
+            <select
+              value={credentialId}
+              onChange={(e) => setCredentialId(e.target.value)}
+              style={inputStyle}
+            >
+              <option value="">请选择 Credential</option>
+              {credentials.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.credentialName} ({item.companyCode})
+                </option>
               ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+            </select>
+
+            <button onClick={handleAdd} style={blueBtn}>
+              新增
+            </button>
+          </div>
+        </section>
+
+        <section style={panelStyle}>
+          {loading && <p>Loading...</p>}
+          {error && <p style={{ color: "#ff6b6b" }}>{error}</p>}
+          {!loading && !error && rows.length === 0 && <p>No bindings found.</p>}
+
+          {!loading && !error && rows.length > 0 && (
+            <div style={{ overflowX: "auto" }}>
+              <table style={tableStyle}>
+                <thead>
+                  <tr>
+                    {["ID", "Company Code", "Company Name", "Credential ID", "Credential Name", "Actions"].map((title) => (
+                      <th key={title} style={thStyle}>{title}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr key={row.id}>
+                      <td style={cellStyle}>{row.id}</td>
+                      <td style={cellStyle}>{row.companyCode}</td>
+                      <td style={cellStyle}>{row.companyName}</td>
+                      <td style={cellStyle}>{row.credentialId}</td>
+                      <td style={cellStyle}>{row.credentialName || "-"}</td>
+                      <td style={cellStyle}>
+                        <button onClick={() => handleDelete(row.id)} style={redBtn}>
+                          删除
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
 
+const pageBg: React.CSSProperties = {
+  minHeight: "100vh",
+  background: "linear-gradient(180deg,#041230 0%,#081b49 40%,#041230 100%)",
+  padding: "22px 0 40px",
+};
+
+const containerStyle: React.CSSProperties = {
+  width: "min(1180px, calc(100% - 32px))",
+  margin: "0 auto",
+};
+
+const panelStyle: React.CSSProperties = {
+  background: "rgba(24,39,82,0.95)",
+  border: "1px solid rgba(124,155,255,0.14)",
+  borderRadius: 22,
+  padding: 18,
+  marginBottom: 18,
+  boxShadow: "0 18px 40px rgba(0,0,0,0.22)",
+};
+
+const eyebrowStyle: React.CSSProperties = {
+  color: "#3ddcff",
+  fontSize: 13,
+  fontWeight: 800,
+  letterSpacing: "0.18em",
+  marginBottom: 8,
+};
+
+const titleStyle: React.CSSProperties = {
+  margin: 0,
+  fontSize: 36,
+  lineHeight: 1.15,
+  fontWeight: 900,
+};
+
+const descStyle: React.CSSProperties = {
+  marginTop: 10,
+  marginBottom: 0,
+  color: "rgba(255,255,255,0.72)",
+};
+
+const sectionTitle: React.CSSProperties = {
+  marginTop: 0,
+  marginBottom: 14,
+  fontSize: 20,
+};
+
+const formGrid: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr 1fr auto",
+  gap: 12,
+};
+
 const inputStyle: React.CSSProperties = {
   width: "100%",
-  padding: "10px 12px",
-  background: "#111",
+  padding: "12px 14px",
+  background: "#09152f",
   color: "#fff",
-  border: "1px solid #333",
-  borderRadius: 6,
+  border: "1px solid rgba(124,155,255,0.18)",
+  borderRadius: 14,
   outline: "none",
   boxSizing: "border-box",
 };
 
-const buttonStyle: React.CSSProperties = {
-  padding: "10px 18px",
-  background: "#2563eb",
+const blueBtn: React.CSSProperties = {
+  padding: "12px 18px",
+  background: "linear-gradient(135deg,#18c3ff,#2563eb)",
   color: "#fff",
   border: "none",
-  borderRadius: 6,
+  borderRadius: 14,
   cursor: "pointer",
+  fontWeight: 800,
 };
 
-const deleteButtonStyle: React.CSSProperties = {
+const redBtn: React.CSSProperties = {
   padding: "8px 14px",
-  background: "#dc2626",
+  background: "#ef4444",
   color: "#fff",
   border: "none",
-  borderRadius: 6,
+  borderRadius: 10,
   cursor: "pointer",
+  fontWeight: 800,
+};
+
+const tableStyle: React.CSSProperties = {
+  width: "100%",
+  borderCollapse: "collapse",
+  background: "rgba(9,21,47,0.88)",
+  borderRadius: 16,
+  overflow: "hidden",
 };
 
 const thStyle: React.CSSProperties = {
-  border: "1px solid #333",
-  padding: "10px",
+  borderBottom: "1px solid rgba(124,155,255,0.16)",
+  padding: "12px",
   textAlign: "left",
   verticalAlign: "top",
+  whiteSpace: "nowrap",
 };
 
 const cellStyle: React.CSSProperties = {
-  border: "1px solid #333",
-  padding: "10px",
+  borderBottom: "1px solid rgba(124,155,255,0.10)",
+  padding: "12px",
   verticalAlign: "top",
 };
